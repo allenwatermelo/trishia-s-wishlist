@@ -64,3 +64,5 @@ html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
 @keyframes ink-write{from{clip-path:inset(0 100% 0 0);opacity:.2}to{clip-path:inset(0 0 0 0);opacity:1}}
 @media(max-width:520px){.welcome h1{font-size:clamp(2.85rem,12.8vw,3.9rem);line-height:1.12}.title-script-line{font-size:1.2em}}
 @media(prefers-reduced-motion:reduce){.title-write-line{animation-duration:.75s!important}}
+.welcome h1,.welcome .title-write-line{animation-play-state:paused}
+.welcome.is-writing h1,.welcome.is-writing .title-write-line{animation-play-state:running}

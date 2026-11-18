@@ -190,6 +190,9 @@ begin.addEventListener('click', () => {
   playNotes([523.25, 659.25, 783.99, 1046.5, 880, 1174.66], { type: 'triangle', volume: 0.18, spacing: 0.13, duration: 0.22 });
   opening.classList.add('is-gone');
   welcome.classList.remove('is-hidden');
+  welcome.classList.remove('is-writing');
+  void title.offsetWidth;
+  welcome.classList.add('is-writing');
   view.classList.add('is-ready');
 }, { once: true });
 
