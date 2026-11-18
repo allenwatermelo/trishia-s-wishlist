@@ -8,6 +8,8 @@ const title = document.querySelector('#welcome-title');
 const cards = document.querySelector('#cards');
 const carouselViewport = document.querySelector('.carousel-viewport');
 const cardList = [...document.querySelectorAll('.wish-card')];
+const slideStatus = document.querySelector('#slide-status');
+const progressDots = [...document.querySelectorAll('.progress-dots i')];
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioContext;
 let soundEnabled = true;
@@ -66,7 +68,7 @@ function playNotes(notes, { type = 'sine', volume = 0.16, spacing = 0.1, duratio
     });
   };
   // On iOS, wait for the user gesture to resume AudioContext before scheduling tones.
-  if (context.state === 'suspended') context.resume().then(schedule).catch(() => {});
+  if (context.state !== 'running') context.resume().then(schedule).catch(() => {});
   else schedule();
 }
 
@@ -85,21 +87,34 @@ soundToggle.addEventListener('click', () => {
 function showCard(index) {
   activeCard = (index + cardList.length) % cardList.length;
   cards.style.transform = `translateX(-${activeCard * 100}%)`;
+  slideStatus.textContent = `${activeCard + 1} of ${cardList.length} wishlists`;
+  progressDots.forEach((dot, dotIndex) => dot.classList.toggle('is-current', dotIndex === activeCard));
 }
 
-document.querySelector('.arrow-prev').addEventListener('click', () => {
+function animateArrow(arrow) {
+  arrow.classList.remove('is-bopping');
+  void arrow.offsetWidth;
+  arrow.classList.add('is-bopping');
+}
+
+const previousArrow = document.querySelector('.arrow-prev');
+const nextArrow = document.querySelector('.arrow-next');
+previousArrow.addEventListener('click', () => {
+  animateArrow(previousArrow);
   showCard(activeCard - 1);
-  playNotes([587, 784], { volume: 0.09, duration: 0.2 });
+  playNotes([740, 988], { type: 'triangle', volume: 0.17, duration: 0.24 });
 });
-document.querySelector('.arrow-next').addEventListener('click', () => {
+nextArrow.addEventListener('click', () => {
+  animateArrow(nextArrow);
   showCard(activeCard + 1);
-  playNotes([784, 988], { volume: 0.09, duration: 0.2 });
+  playNotes([880, 1174.66], { type: 'triangle', volume: 0.17, duration: 0.24 });
 });
 
 carouselViewport.addEventListener('pointerdown', (event) => {
-  if (event.pointerType === 'touch' || event.pointerType === 'pen') pointerStartX = event.clientX;
+  if (event.pointerType === 'pen') pointerStartX = event.clientX;
 });
 carouselViewport.addEventListener('pointerup', (event) => {
+  if (event.pointerType === 'touch') return;
   if (pointerStartX === null) return;
   const delta = event.clientX - pointerStartX;
   pointerStartX = null;
@@ -108,6 +123,19 @@ carouselViewport.addEventListener('pointerup', (event) => {
   playNotes(delta < 0 ? [784, 988] : [587, 784], { volume: 0.08, duration: 0.2 });
 });
 carouselViewport.addEventListener('pointercancel', () => { pointerStartX = null; });
+
+let touchStartX = null;
+carouselViewport.addEventListener('touchstart', (event) => {
+  touchStartX = event.changedTouches[0].clientX;
+}, { passive: true });
+carouselViewport.addEventListener('touchend', (event) => {
+  if (touchStartX === null) return;
+  const delta = event.changedTouches[0].clientX - touchStartX;
+  touchStartX = null;
+  if (Math.abs(delta) < 45) return;
+  showCard(activeCard + (delta < 0 ? 1 : -1));
+  playNotes(delta < 0 ? [880, 1174.66] : [740, 988], { type: 'triangle', volume: 0.15, duration: 0.24 });
+}, { passive: true });
 
 document.querySelectorAll('.shop-link').forEach((link) => {
   link.addEventListener('click', () => playNotes([740], { volume: 0.07, duration: 0.14 }));

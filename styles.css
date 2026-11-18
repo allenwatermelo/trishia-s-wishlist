@@ -11,3 +11,18 @@
 .gallery{background-color:#ffcb6e;background-image:radial-gradient(#fff9 1.25px,transparent 1.7px),radial-gradient(#4c2c5735 1.4px,transparent 1.8px),radial-gradient(ellipse at 0 0,#ffaf7f 0,transparent 40%),radial-gradient(ellipse at 100% 0,#5fe0ce 0,transparent 40%),radial-gradient(ellipse at 100% 100%,#ff82b4 0,transparent 38%),radial-gradient(ellipse at 0 100%,#b4a0ff 0,transparent 40%),linear-gradient(135deg,#ffe18a,#ff986f 52%,#dca8fa);background-size:28px 28px,28px 28px,100% 100%,100% 100%,100% 100%,100% 100%,100% 100%;background-position:0 0,14px 14px,center,center,center,center,center}
 .gallery:before{background:transparent}
 @media(max-width:520px){.welcome h1{font-size:clamp(2.15rem,10.5vw,3.3rem);max-width:100%;padding-inline:16px;column-gap:.09em}.title-space{flex-basis:.14em}.welcome-wash{width:100vw}}
+.gallery{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px}
+.gallery-header{position:relative;z-index:1;text-align:center;margin:0 0 4px;padding:0 12px}
+.gallery-header h2{display:flex;justify-content:center;align-items:center;gap:10px;margin:0 0 9px;color:#54284f;font-size:clamp(1.35rem,5vw,2.1rem);font-weight:900;line-height:1.2;letter-spacing:-.04em;text-shadow:2px 2px 0 #fff5}
+.gallery-header h2 span{display:inline-block;color:#f42f91;font-size:1.15em;animation:flower-wiggle 2.4s ease-in-out infinite}
+.gallery-header h2 span:last-child{color:#39bcae;animation-delay:-1.2s}
+.gallery-progress{display:flex;align-items:center;justify-content:center;gap:10px;width:max-content;margin:auto;padding:6px 13px;border:2px solid #3e2940;border-radius:999px;background:#fff2d9d9;box-shadow:2px 3px 0 #3e2940;color:#54284f;font-size:.76rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.progress-dots{display:flex;align-items:center;gap:5px}
+.progress-dots i{display:block;width:8px;height:8px;border:1.5px solid #3e2940;border-radius:50%;background:#fff}
+.progress-dots i.is-current{width:11px;height:11px;background:#f42f91;box-shadow:0 0 0 2px #f42f9140}
+.carousel-arrow.is-bopping{animation:arrow-bop .42s cubic-bezier(.2,1.4,.5,1)}
+.cards{transition:transform .72s cubic-bezier(.2,.85,.25,1)}
+@keyframes arrow-bop{0%,100%{transform:scale(1) rotate(0)}35%{transform:scale(1.2) rotate(-13deg)}70%{transform:scale(.92) rotate(8deg)}}
+@keyframes flower-wiggle{0%,100%{transform:rotate(-9deg) scale(1)}50%{transform:rotate(9deg) scale(1.1)}}
+@media(max-width:520px){.gallery{gap:10px;padding-top:75px;padding-bottom:24px}.gallery-header{margin-bottom:0}.gallery-header h2{gap:7px;font-size:clamp(1.25rem,5.4vw,1.75rem)}.gallery-progress{padding:5px 11px;font-size:.7rem}.carousel-shell{margin-top:0}}
+@media(prefers-reduced-motion:reduce){.cards{transition-duration:.25s!important}.carousel-arrow.is-bopping{animation-duration:.3s!important;animation-iteration-count:1!important}.gallery-header h2 span{animation:none!important}}
