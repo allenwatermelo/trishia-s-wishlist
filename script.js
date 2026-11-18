@@ -15,6 +15,8 @@ let audioContext;
 let soundEnabled = true;
 let activeCard = 0;
 let pointerStartX = null;
+let nextSoundCueAt = 0;
+const activeAudioNodes = new Set();
 
 // Animate letters individually, but let the title wrap only at spaces on small screens.
 const titleColors = ['#f42f91', '#ff743d', '#efae00', '#199f98', '#9a72eb', '#e65363'];
@@ -42,8 +44,18 @@ let letterIndex = 0;
 });
 
 function getAudio() {
-  if (!AudioContextClass) return null;
-  if (!audioContext) audioContext = new AudioContextClass();
+  if (!AudioContextClass) {
+    console.warn('This browser does not expose Web Audio; wishlist sound effects are unavailable.');
+    return null;
+  }
+  if (!audioContext) {
+    try {
+      audioContext = new AudioContextClass();
+    } catch (error) {
+      console.warn('Wishlist sounds are unavailable in this browser.', error);
+      return null;
+    }
+  }
   return audioContext;
 }
 
@@ -52,7 +64,8 @@ function playNotes(notes, { type = 'sine', volume = 0.16, spacing = 0.1, duratio
   const context = getAudio();
   if (!context) return;
   const schedule = () => {
-    const start = context.currentTime + 0.035;
+    if (!soundEnabled) return;
+    const start = Math.max(context.currentTime + 0.035, nextSoundCueAt);
     notes.forEach((frequency, index) => {
       const oscillator = context.createOscillator();
       const envelope = context.createGain();
@@ -65,11 +78,37 @@ function playNotes(notes, { type = 'sine', volume = 0.16, spacing = 0.1, duratio
       oscillator.connect(envelope).connect(context.destination);
       oscillator.start(noteStart);
       oscillator.stop(noteStart + duration + 0.025);
+      activeAudioNodes.add(oscillator);
+      oscillator.addEventListener('ended', () => activeAudioNodes.delete(oscillator), { once: true });
     });
+    nextSoundCueAt = start + (notes.length - 1) * spacing + duration + 0.06;
   };
   // On iOS, wait for the user gesture to resume AudioContext before scheduling tones.
-  if (context.state !== 'running') context.resume().then(schedule).catch(() => {});
-  else schedule();
+  if (context.state !== 'running') {
+    try {
+      const resumeResult = context.resume();
+      if (resumeResult && typeof resumeResult.then === 'function') {
+        resumeResult.then(() => {
+          if (context.state === 'running') schedule();
+          else console.warn(`Wishlist audio remained ${context.state} after resume.`);
+        }).catch((error) => console.warn('Wishlist audio could not resume.', error));
+      } else {
+        schedule();
+      }
+    } catch (error) {
+      console.warn('Wishlist audio could not resume.', error);
+    }
+  } else {
+    schedule();
+  }
+}
+
+function stopAudio() {
+  activeAudioNodes.forEach((node) => {
+    try { node.stop(); } catch { /* The note already ended. */ }
+  });
+  activeAudioNodes.clear();
+  if (audioContext) nextSoundCueAt = audioContext.currentTime;
 }
 
 function updateSoundToggle() {
@@ -81,6 +120,7 @@ function updateSoundToggle() {
 soundToggle.addEventListener('click', () => {
   soundEnabled = !soundEnabled;
   updateSoundToggle();
+  if (!soundEnabled) stopAudio();
   if (soundEnabled) playNotes([784], { volume: 0.11, duration: 0.2 });
 });
 
@@ -89,6 +129,13 @@ function showCard(index) {
   cards.style.transform = `translateX(-${activeCard * 100}%)`;
   slideStatus.textContent = `${activeCard + 1} of ${cardList.length} wishlists`;
   progressDots.forEach((dot, dotIndex) => dot.classList.toggle('is-current', dotIndex === activeCard));
+  cardList.forEach((card, cardIndex) => {
+    card.classList.remove('is-active');
+    if (cardIndex === activeCard) {
+      void card.offsetWidth;
+      card.classList.add('is-active');
+    }
+  });
 }
 
 function animateArrow(arrow) {
