@@ -56,3 +56,11 @@ html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
 @keyframes write-on{from{opacity:.25;clip-path:inset(0 100% 0 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
 @keyframes caret-blink{50%{opacity:0}}
 @media(max-width:520px){.welcome h1{font-size:clamp(2.7rem,12.2vw,3.8rem);line-height:1.16}}
+.welcome h1{letter-spacing:-.035em;filter:drop-shadow(1px 2px 0 #3e2940)}
+.welcome h1:after{content:none;animation:none}
+.title-write-line{display:block;flex:0 0 100%;width:100%;white-space:nowrap;clip-path:inset(0 100% 0 0);opacity:.2;animation:ink-write 1.15s cubic-bezier(.45,.02,.25,1) both;animation-delay:var(--write-delay)}
+.title-main-line{background:linear-gradient(100deg,#e7358d 0%,#ff743d 34%,#9a72eb 68%,#199f98 100%);background-clip:text;-webkit-background-clip:text;color:transparent}
+.title-script-line{font-family:'Dancing Script',cursive;font-size:1.18em;font-weight:700;line-height:1.05;letter-spacing:.005em;background:linear-gradient(100deg,#e7358d,#9a72eb 55%,#159b98);background-clip:text;-webkit-background-clip:text;color:transparent}
+@keyframes ink-write{from{clip-path:inset(0 100% 0 0);opacity:.2}to{clip-path:inset(0 0 0 0);opacity:1}}
+@media(max-width:520px){.welcome h1{font-size:clamp(2.85rem,12.8vw,3.9rem);line-height:1.12}.title-script-line{font-size:1.2em}}
+@media(prefers-reduced-motion:reduce){.title-write-line{animation-duration:.75s!important}}

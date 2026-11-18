@@ -18,29 +18,18 @@ let touchStartX = null;
 let missingAudioApiReported = false;
 const activeAudioNodes = new Set();
 
-// Keep words intact on mobile while giving each title letter its own pop-in.
-const titleColors = ['#f42f91', '#ff743d', '#efae00', '#199f98', '#9a72eb', '#e65363'];
-let letterIndex = 0;
-"Trishea's 3 Wishlists".split(' ').forEach((word, wordIndex, words) => {
-  const wordElement = document.createElement('span');
-  wordElement.className = 'title-word';
-  wordElement.setAttribute('aria-hidden', 'true');
-  [...word].forEach((character) => {
-    const letter = document.createElement('span');
-    letter.className = 'title-letter';
-    letter.textContent = character;
-    letter.style.setProperty('--letter-color', titleColors[letterIndex % titleColors.length]);
-    letter.style.setProperty('--delay', `${letterIndex * 68}ms`);
-    wordElement.append(letter);
-    letterIndex += 1;
-  });
-  title.append(wordElement);
-  if (wordIndex < words.length - 1) {
-    const space = document.createElement('span');
-    space.className = 'title-space';
-    space.setAttribute('aria-hidden', 'true');
-    title.append(space);
-  }
+// Reveal the title in two smooth strokes; the second line is handwritten-style.
+const titleLines = [
+  { text: "Trishea's 3", className: 'title-write-line title-main-line', delay: '0ms' },
+  { text: 'Wishlists', className: 'title-write-line title-script-line', delay: '620ms' },
+];
+titleLines.forEach(({ text, className, delay }) => {
+  const line = document.createElement('span');
+  line.className = className;
+  line.textContent = text;
+  line.setAttribute('aria-hidden', 'true');
+  line.style.setProperty('--write-delay', delay);
+  title.append(line);
 });
 
 function getAudioContext() {
