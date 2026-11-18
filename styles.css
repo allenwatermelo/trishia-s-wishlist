@@ -40,3 +40,24 @@ html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
 @media(prefers-reduced-motion:reduce){.intro-card{animation-duration:.5s!important;animation-iteration-count:1!important}.title-letter{animation-duration:.38s!important;animation-iteration-count:1!important}.view-button.is-ready{animation-duration:.42s!important;animation-iteration-count:1!important}.flower,.petal,.sparkle{animation-duration:1.2s!important;animation-iteration-count:2!important}.gallery-header h2 span{animation-duration:.5s!important;animation-iteration-count:1!important}.wish-card.is-active .image-frame img{animation-duration:.32s!important}.begin-button:active,.view-button:active,.shop-link:active,.sound-toggle:active,.carousel-arrow:active{transition-duration:.12s!important}}
 @media(prefers-reduced-motion:reduce){.gift{animation-duration:1.2s!important;animation-iteration-count:2!important}.opening-orbit{animation-duration:2s!important;animation-iteration-count:1!important}.welcome-wash{animation-duration:2s!important;animation-iteration-count:1!important}.welcome h1{animation-duration:.8s!important;animation-iteration-count:1!important}}
 .gallery-header,.carousel-shell{transform:translateY(-18px)}
+.gallery-header{position:absolute;top:max(38px,calc(env(safe-area-inset-top) + 14px));left:0;right:0;transform:none;padding:0 12px}
+.gallery-header h2{font-size:clamp(1.28rem,4vw,1.55rem)}
+.gallery-header h2 .gallery-title{font-size:inherit;color:#54284f;animation:none}
+.gallery-header h2 .gallery-title em{font-family:'Dancing Script',cursive;font-size:1.2em;font-style:normal;font-weight:700;color:#e7358d;letter-spacing:0}
+.gallery-header h2 .heading-flower{font-size:1.05em}
+@media(max-width:520px){.gallery-header{top:max(38px,calc(env(safe-area-inset-top) + 12px))}.gallery-header h2{font-size:clamp(1.2rem,4.9vw,1.43rem)}}
+.audio-debug{position:fixed;z-index:24;left:12px;bottom:max(12px,env(safe-area-inset-bottom));font-family:'Poppins',sans-serif;color:#3e2940}
+.audio-debug summary{width:max-content;max-width:calc(100vw - 24px);padding:8px 13px;border:2px solid #3e2940;border-radius:999px;background:#ffd445;box-shadow:3px 4px 0 #3e2940;font-size:.75rem;font-weight:700;cursor:pointer;list-style:none}
+.audio-debug summary::-webkit-details-marker{display:none}
+.audio-debug summary:active{transform:translate(1px,1px)}
+.audio-debug-panel{position:absolute;left:0;bottom:calc(100% + 10px);display:grid;gap:8px;width:min(310px,calc(100vw - 24px));max-height:min(65svh,430px);overflow:auto;padding:13px;border:2px solid #3e2940;border-radius:18px;background:#fff5df;box-shadow:5px 6px 0 #3e2940}
+.audio-state-row{display:flex;align-items:baseline;justify-content:space-between;gap:9px;font-size:.7rem;font-weight:700}
+.audio-state-row output{max-width:66%;text-align:right;overflow-wrap:anywhere;font-weight:500}
+.audio-test-button{width:100%;padding:9px 11px;border:2px solid #3e2940;border-radius:13px;background:#39cabb;color:#3e2940;font:600 .76rem 'Poppins',sans-serif;cursor:pointer;touch-action:manipulation}
+.test-html-audio{background:#f42f91;color:white}
+.audio-test-button:active{transform:scale(.97)}
+.audio-test-result{min-height:1.2em;font-size:.67rem;line-height:1.35;overflow-wrap:anywhere}
+.welcome{background-color:#fff3df;background-image:radial-gradient(ellipse at 0% 10%,#ffc37e 0,transparent 43%),radial-gradient(ellipse at 100% 16%,#9de0d1 0,transparent 42%),radial-gradient(ellipse at 92% 100%,#f6b4cc 0,transparent 43%),radial-gradient(ellipse at 0% 100%,#c1b0ed 0,transparent 42%),linear-gradient(135deg,#fff2df,#fff7e9 56%,#f6efff);background-size:100% 100%;background-repeat:no-repeat}
+.welcome-wash{background:radial-gradient(circle,#ffe0eaaa 0,#ffe8bf77 36%,#d9f1e577 55%,transparent 73%);filter:none;opacity:.72;animation:breathe 6s ease-in-out infinite}
+.welcome h1{filter:drop-shadow(2px 3px 0 #3e2940);}
+@media(prefers-reduced-motion:reduce){.welcome-wash{animation:none!important}}

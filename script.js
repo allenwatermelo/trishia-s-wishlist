@@ -10,15 +10,21 @@ const carouselViewport = document.querySelector('.carousel-viewport');
 const cardList = [...document.querySelectorAll('.wish-card')];
 const slideStatus = document.querySelector('#slide-status');
 const progressDots = [...document.querySelectorAll('.progress-dots i')];
+const audioElement = document.querySelector('#audio-test-file');
+const contextStateOutput = document.querySelector('#audio-context-state');
+const resumeOutput = document.querySelector('#audio-resume-result');
+const fileStatusOutput = document.querySelector('#audio-file-status');
+const webAudioResult = document.querySelector('#web-audio-result');
+const htmlAudioResult = document.querySelector('#html-audio-result');
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioContext;
-let soundEnabled = true;
+let audioEnabled = true;
 let activeCard = 0;
-let pointerStartX = null;
-let nextSoundCueAt = 0;
+let touchStartX = null;
+let missingAudioApiReported = false;
 const activeAudioNodes = new Set();
 
-// Animate letters individually, but let the title wrap only at spaces on small screens.
+// Keep words intact on mobile while giving each title letter its own pop-in.
 const titleColors = ['#f42f91', '#ff743d', '#efae00', '#199f98', '#9a72eb', '#e65363'];
 let letterIndex = 0;
 "Trishea's 3 Wishlists".split(' ').forEach((word, wordIndex, words) => {
@@ -43,85 +49,126 @@ let letterIndex = 0;
   }
 });
 
-function getAudio() {
+function updateContextState() {
+  contextStateOutput.textContent = audioContext ? audioContext.state : 'Not initialized';
+  if (audioContext?.state === 'running' && /^(Resume requested|Resolved but state is)/.test(resumeOutput.textContent)) {
+    resumeOutput.textContent = 'AudioContext is running';
+  }
+}
+
+function getAudioContext() {
   if (!AudioContextClass) {
-    console.warn('This browser does not expose Web Audio; wishlist sound effects are unavailable.');
+    if (!missingAudioApiReported) {
+      console.error('AudioContext and webkitAudioContext are unavailable in this browser.');
+      missingAudioApiReported = true;
+    }
     return null;
   }
+  if (audioContext?.state === 'closed') audioContext = null;
   if (!audioContext) {
     try {
       audioContext = new AudioContextClass();
+      audioContext.onstatechange = updateContextState;
+      updateContextState();
     } catch (error) {
-      console.warn('Wishlist sounds are unavailable in this browser.', error);
+      contextStateOutput.textContent = 'Creation failed';
+      resumeOutput.textContent = `${error.name || 'Error'}: ${error.message || error}`;
+      console.error('Could not create the wishlist AudioContext.', error);
       return null;
     }
   }
   return audioContext;
 }
 
-function playNotes(notes, { type = 'sine', volume = 0.16, spacing = 0.1, duration = 0.32 } = {}) {
-  if (!soundEnabled) return;
-  const context = getAudio();
-  if (!context) return;
-  const schedule = () => {
-    if (!soundEnabled) return;
-    const start = Math.max(context.currentTime + 0.035, nextSoundCueAt);
-    notes.forEach((frequency, index) => {
-      const oscillator = context.createOscillator();
-      const envelope = context.createGain();
-      const noteStart = start + index * spacing;
-      oscillator.type = type;
-      oscillator.frequency.setValueAtTime(frequency, noteStart);
-      envelope.gain.setValueAtTime(0.0001, noteStart);
-      envelope.gain.exponentialRampToValueAtTime(volume, noteStart + 0.025);
-      envelope.gain.exponentialRampToValueAtTime(0.0001, noteStart + duration);
-      oscillator.connect(envelope).connect(context.destination);
-      oscillator.start(noteStart);
-      oscillator.stop(noteStart + duration + 0.025);
-      activeAudioNodes.add(oscillator);
-      oscillator.addEventListener('ended', () => activeAudioNodes.delete(oscillator), { once: true });
-    });
-    nextSoundCueAt = start + (notes.length - 1) * spacing + duration + 0.06;
-  };
-  // On iOS, wait for the user gesture to resume AudioContext before scheduling tones.
-  if (context.state !== 'running') {
-    try {
-      const resumeResult = context.resume();
-      if (resumeResult && typeof resumeResult.then === 'function') {
-        resumeResult.then(() => {
-          if (context.state === 'running') schedule();
-          else console.warn(`Wishlist audio remained ${context.state} after resume.`);
-        }).catch((error) => console.warn('Wishlist audio could not resume.', error));
-      } else {
-        schedule();
-      }
-    } catch (error) {
-      console.warn('Wishlist audio could not resume.', error);
+// Called synchronously from the tap handler. Promise callbacks update diagnostics only;
+// sound sources are created and started before this handler returns.
+function requestContextResume(context) {
+  updateContextState();
+  if (context.state === 'running') {
+    resumeOutput.textContent = 'Already running';
+    return;
+  }
+  const previousState = context.state;
+  resumeOutput.textContent = `Resume requested from ${previousState}`;
+  try {
+    const result = context.resume();
+    if (result && typeof result.then === 'function') {
+      result.then(() => {
+        updateContextState();
+        resumeOutput.textContent = context.state === 'running'
+          ? `Succeeded (${previousState} → running)`
+          : `Resolved but state is ${context.state}`;
+      }).catch((error) => {
+        updateContextState();
+        resumeOutput.textContent = `Rejected: ${error.name || 'Error'}: ${error.message || error}`;
+        console.error('AudioContext.resume() rejected.', error);
+      });
+    } else {
+      updateContextState();
+      resumeOutput.textContent = `resume() returned no Promise (${context.state})`;
     }
-  } else {
-    schedule();
+  } catch (error) {
+    updateContextState();
+    resumeOutput.textContent = `Threw: ${error.name || 'Error'}: ${error.message || error}`;
+    console.error('AudioContext.resume() threw.', error);
   }
 }
 
 function stopAudio() {
   activeAudioNodes.forEach((node) => {
-    try { node.stop(); } catch { /* The note already ended. */ }
+    try { node.stop(); } catch { /* The scheduled note has already ended. */ }
   });
   activeAudioNodes.clear();
-  if (audioContext) nextSoundCueAt = audioContext.currentTime;
+  if (audioElement && !audioElement.paused) {
+    audioElement.pause();
+    try { audioElement.currentTime = 0; } catch { /* Metadata may not be ready yet. */ }
+  }
+}
+
+function startNotesImmediately(context, frequencies, { type = 'sine', volume = 0.14, spacing = 0.11, duration = 0.24 } = {}) {
+  const start = context.currentTime + 0.006;
+  frequencies.forEach((frequency, index) => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const noteStart = start + index * spacing;
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, noteStart);
+    gain.gain.setValueAtTime(0.0001, noteStart);
+    gain.gain.exponentialRampToValueAtTime(volume, noteStart + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + duration);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.addEventListener('ended', () => activeAudioNodes.delete(oscillator), { once: true });
+    activeAudioNodes.add(oscillator);
+    oscillator.start(noteStart);
+    oscillator.stop(noteStart + duration + 0.025);
+  });
+}
+
+function playNotes(frequencies, options = {}) {
+  if (!audioEnabled) return;
+  const context = getAudioContext();
+  if (!context) return;
+  requestContextResume(context);
+  stopAudio();
+  try {
+    startNotesImmediately(context, frequencies, options);
+  } catch (error) {
+    console.error('Wishlist oscillator playback failed.', error);
+  }
 }
 
 function updateSoundToggle() {
-  soundToggle.textContent = soundEnabled ? '🔊' : '🔇';
-  soundToggle.setAttribute('aria-label', soundEnabled ? 'Turn sound off' : 'Turn sound on');
-  soundToggle.title = soundEnabled ? 'Turn sound off' : 'Turn sound on';
+  soundToggle.textContent = audioEnabled ? '🔊' : '🔇';
+  soundToggle.setAttribute('aria-label', audioEnabled ? 'Turn sound off' : 'Turn sound on');
+  soundToggle.title = audioEnabled ? 'Turn sound off' : 'Turn sound on';
 }
 
 soundToggle.addEventListener('click', () => {
-  soundEnabled = !soundEnabled;
+  audioEnabled = !audioEnabled;
   updateSoundToggle();
-  if (!soundEnabled) stopAudio();
-  if (soundEnabled) playNotes([784], { volume: 0.11, duration: 0.2 });
+  if (!audioEnabled) stopAudio();
+  else playNotes([784], { volume: 0.13, duration: 0.2 });
 });
 
 function showCard(index) {
@@ -158,20 +205,17 @@ nextArrow.addEventListener('click', () => {
 });
 
 carouselViewport.addEventListener('pointerdown', (event) => {
-  if (event.pointerType === 'pen') pointerStartX = event.clientX;
+  if (event.pointerType === 'pen') touchStartX = event.clientX;
 });
 carouselViewport.addEventListener('pointerup', (event) => {
-  if (event.pointerType === 'touch') return;
-  if (pointerStartX === null) return;
-  const delta = event.clientX - pointerStartX;
-  pointerStartX = null;
+  if (event.pointerType === 'touch' || touchStartX === null) return;
+  const delta = event.clientX - touchStartX;
+  touchStartX = null;
   if (Math.abs(delta) < 45) return;
   showCard(activeCard + (delta < 0 ? 1 : -1));
-  playNotes(delta < 0 ? [784, 988] : [587, 784], { volume: 0.08, duration: 0.2 });
+  playNotes(delta < 0 ? [880, 1174.66] : [740, 988], { type: 'triangle', volume: 0.15 });
 });
-carouselViewport.addEventListener('pointercancel', () => { pointerStartX = null; });
-
-let touchStartX = null;
+carouselViewport.addEventListener('pointercancel', () => { touchStartX = null; });
 carouselViewport.addEventListener('touchstart', (event) => {
   touchStartX = event.changedTouches[0].clientX;
 }, { passive: true });
@@ -181,26 +225,104 @@ carouselViewport.addEventListener('touchend', (event) => {
   touchStartX = null;
   if (Math.abs(delta) < 45) return;
   showCard(activeCard + (delta < 0 ? 1 : -1));
-  playNotes(delta < 0 ? [880, 1174.66] : [740, 988], { type: 'triangle', volume: 0.15, duration: 0.24 });
+  playNotes(delta < 0 ? [880, 1174.66] : [740, 988], { type: 'triangle', volume: 0.15 });
 }, { passive: true });
 
 document.querySelectorAll('.shop-link').forEach((link) => {
-  link.addEventListener('click', () => playNotes([740], { volume: 0.07, duration: 0.14 }));
+  link.addEventListener('click', () => playNotes([740], { volume: 0.1, duration: 0.14 }));
 });
 
 begin.addEventListener('click', () => {
-  playNotes([523.25, 659.25, 783.99, 1046.5], { type: 'triangle', volume: 0.2, spacing: 0.12, duration: 0.55 });
+  // Start the complete opening arpeggio in this trusted tap, without waiting for animation timers.
+  playNotes([523.25, 659.25, 783.99, 1046.5, 880, 1174.66], { type: 'triangle', volume: 0.18, spacing: 0.13, duration: 0.22 });
   opening.classList.add('is-gone');
   welcome.classList.remove('is-hidden');
-  window.setTimeout(() => playNotes([880, 1174.66], { volume: 0.11, spacing: 0.08, duration: 0.24 }), 720);
   view.classList.add('is-ready');
 }, { once: true });
 
 view.addEventListener('click', () => {
-  playNotes([659.25, 880], { volume: 0.09, duration: 0.2 });
+  playNotes([659.25, 880], { volume: 0.12, duration: 0.2 });
   welcome.classList.add('is-hidden');
   gallery.classList.remove('is-hidden');
   showCard(activeCard);
+});
+
+// TEST A: created and started synchronously in this button's own tap handler.
+document.querySelector('#test-web-audio').addEventListener('click', () => {
+  const context = getAudioContext();
+  if (!context) {
+    webAudioResult.textContent = 'Failed: Web Audio API unavailable; see console.';
+    return;
+  }
+  stopAudio();
+  requestContextResume(context);
+  try {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const start = context.currentTime;
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.addEventListener('ended', () => {
+      activeAudioNodes.delete(oscillator);
+      webAudioResult.textContent = `Oscillator ended; AudioContext state=${context.state}`;
+    }, { once: true });
+    activeAudioNodes.add(oscillator);
+    oscillator.start(start);
+    oscillator.stop(start + 0.32);
+    webAudioResult.textContent = `oscillator.start() called; context=${context.state}`;
+  } catch (error) {
+    webAudioResult.textContent = `Failed: ${error.name || 'Error'}: ${error.message || error}`;
+    console.error('Web Audio test failed.', error);
+  }
+});
+
+function updateAudioFileStatus(message) {
+  fileStatusOutput.textContent = message;
+}
+
+audioElement.addEventListener('loadstart', () => updateAudioFileStatus('Loading file…'));
+audioElement.addEventListener('loadeddata', () => updateAudioFileStatus('Loaded (readyState ' + audioElement.readyState + ')'));
+audioElement.addEventListener('canplay', () => updateAudioFileStatus('Ready to play'));
+audioElement.addEventListener('playing', () => {
+  htmlAudioResult.textContent = 'playing event fired; HTML Audio playback started.';
+});
+audioElement.addEventListener('error', () => {
+  const mediaError = audioElement.error;
+  const message = mediaError ? `MediaError code ${mediaError.code}${mediaError.message ? `: ${mediaError.message}` : ''}` : 'Unknown media loading error';
+  updateAudioFileStatus(`Failed: ${message}`);
+  console.error('HTML Audio test file failed to load.', mediaError);
+});
+audioElement.addEventListener('stalled', () => updateAudioFileStatus('Loading stalled'));
+audioElement.addEventListener('abort', () => updateAudioFileStatus('Loading aborted'));
+if (audioElement.readyState >= 2) updateAudioFileStatus(`Loaded (readyState ${audioElement.readyState})`);
+else audioElement.load();
+
+// TEST B: HTMLAudioElement.play() is called synchronously in this button's tap handler.
+document.querySelector('#test-html-audio').addEventListener('click', () => {
+  stopAudio();
+  try {
+    audioElement.currentTime = 0;
+    const result = audioElement.play();
+    htmlAudioResult.textContent = 'play() called; waiting for browser result…';
+    if (result && typeof result.then === 'function') {
+      result.then(() => {
+        htmlAudioResult.textContent = 'play() resolved; audio is playing.';
+      }).catch((error) => {
+        htmlAudioResult.textContent = `play() rejected: ${error.name || 'Error'}: ${error.message || error}`;
+        console.error('HTMLAudioElement.play() rejected.', error);
+      });
+    } else {
+      htmlAudioResult.textContent = 'play() returned no Promise; check whether the sound is audible.';
+    }
+  } catch (error) {
+    htmlAudioResult.textContent = `play() threw: ${error.name || 'Error'}: ${error.message || error}`;
+    console.error('HTMLAudioElement.play() threw.', error);
+  }
 });
 
 document.addEventListener('keydown', (event) => {
@@ -210,3 +332,4 @@ document.addEventListener('keydown', (event) => {
 });
 
 updateSoundToggle();
+updateContextState();
