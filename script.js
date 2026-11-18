@@ -21,7 +21,7 @@ const activeAudioNodes = new Set();
 // Reveal the title in two smooth strokes; the second line is handwritten-style.
 const titleLines = [
   { text: "Trishea's 3", className: 'title-write-line title-main-line', delay: '0ms' },
-  { text: 'Wishlists', className: 'title-write-line title-script-line', delay: '620ms' },
+  { text: 'Wishlists', className: 'title-write-line title-script-line', delay: '0ms' },
 ];
 titleLines.forEach(({ text, className, delay }) => {
   const line = document.createElement('span');
