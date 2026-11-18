@@ -26,3 +26,10 @@
 @keyframes flower-wiggle{0%,100%{transform:rotate(-9deg) scale(1)}50%{transform:rotate(9deg) scale(1.1)}}
 @media(max-width:520px){.gallery{gap:10px;padding-top:75px;padding-bottom:24px}.gallery-header{margin-bottom:0}.gallery-header h2{gap:7px;font-size:clamp(1.25rem,5.4vw,1.75rem)}.gallery-progress{padding:5px 11px;font-size:.7rem}.carousel-shell{margin-top:0}}
 @media(prefers-reduced-motion:reduce){.cards{transition-duration:.25s!important}.carousel-arrow.is-bopping{animation-duration:.3s!important;animation-iteration-count:1!important}.gallery-header h2 span{animation:none!important}}
+html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none}
+.gallery{height:100svh;min-height:0;padding-top:54px;padding-bottom:12px}
+.carousel-shell{max-height:calc(100svh - 145px)}
+.carousel-viewport{max-height:100%;}
+.wish-card{max-height:calc(100svh - 150px)}
+.image-frame{height:min(37svh,360px);aspect-ratio:unset}
+@media(max-width:520px){.gallery{padding-top:max(48px,env(safe-area-inset-top) + 38px);padding-bottom:8px;gap:7px}.gallery-header{margin-top:0}.carousel-shell{max-height:calc(100svh - 128px)}.wish-card{max-height:calc(100svh - 132px)}.image-frame{height:min(35svh,300px)}}
