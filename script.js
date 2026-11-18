@@ -10,12 +10,6 @@ const carouselViewport = document.querySelector('.carousel-viewport');
 const cardList = [...document.querySelectorAll('.wish-card')];
 const slideStatus = document.querySelector('#slide-status');
 const progressDots = [...document.querySelectorAll('.progress-dots i')];
-const audioElement = document.querySelector('#audio-test-file');
-const contextStateOutput = document.querySelector('#audio-context-state');
-const resumeOutput = document.querySelector('#audio-resume-result');
-const fileStatusOutput = document.querySelector('#audio-file-status');
-const webAudioResult = document.querySelector('#web-audio-result');
-const htmlAudioResult = document.querySelector('#html-audio-result');
 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
 let audioContext;
 let audioEnabled = true;
@@ -36,7 +30,7 @@ let letterIndex = 0;
     letter.className = 'title-letter';
     letter.textContent = character;
     letter.style.setProperty('--letter-color', titleColors[letterIndex % titleColors.length]);
-    letter.style.setProperty('--delay', `${letterIndex * 35}ms`);
+    letter.style.setProperty('--delay', `${letterIndex * 68}ms`);
     wordElement.append(letter);
     letterIndex += 1;
   });
@@ -48,13 +42,6 @@ let letterIndex = 0;
     title.append(space);
   }
 });
-
-function updateContextState() {
-  contextStateOutput.textContent = audioContext ? audioContext.state : 'Not initialized';
-  if (audioContext?.state === 'running' && /^(Resume requested|Resolved but state is)/.test(resumeOutput.textContent)) {
-    resumeOutput.textContent = 'AudioContext is running';
-  }
-}
 
 function getAudioContext() {
   if (!AudioContextClass) {
@@ -68,11 +55,10 @@ function getAudioContext() {
   if (!audioContext) {
     try {
       audioContext = new AudioContextClass();
-      audioContext.onstatechange = updateContextState;
-      updateContextState();
+      audioContext.onstatechange = () => {
+        if (audioContext.state === 'interrupted') console.warn('AudioContext was interrupted by the browser or operating system.');
+      };
     } catch (error) {
-      contextStateOutput.textContent = 'Creation failed';
-      resumeOutput.textContent = `${error.name || 'Error'}: ${error.message || error}`;
       console.error('Could not create the wishlist AudioContext.', error);
       return null;
     }
@@ -80,36 +66,18 @@ function getAudioContext() {
   return audioContext;
 }
 
-// Called synchronously from the tap handler. Promise callbacks update diagnostics only;
-// sound sources are created and started before this handler returns.
+// Resume is requested inside the tap. Its Promise is used only for error reporting;
+// oscillator nodes are started synchronously before the user interaction returns.
 function requestContextResume(context) {
-  updateContextState();
-  if (context.state === 'running') {
-    resumeOutput.textContent = 'Already running';
-    return;
-  }
-  const previousState = context.state;
-  resumeOutput.textContent = `Resume requested from ${previousState}`;
+  if (context.state === 'running') return;
   try {
     const result = context.resume();
     if (result && typeof result.then === 'function') {
       result.then(() => {
-        updateContextState();
-        resumeOutput.textContent = context.state === 'running'
-          ? `Succeeded (${previousState} → running)`
-          : `Resolved but state is ${context.state}`;
-      }).catch((error) => {
-        updateContextState();
-        resumeOutput.textContent = `Rejected: ${error.name || 'Error'}: ${error.message || error}`;
-        console.error('AudioContext.resume() rejected.', error);
-      });
-    } else {
-      updateContextState();
-      resumeOutput.textContent = `resume() returned no Promise (${context.state})`;
+        if (context.state !== 'running') console.warn(`AudioContext resume resolved in state: ${context.state}`);
+      }).catch((error) => console.error('AudioContext.resume() rejected.', error));
     }
   } catch (error) {
-    updateContextState();
-    resumeOutput.textContent = `Threw: ${error.name || 'Error'}: ${error.message || error}`;
     console.error('AudioContext.resume() threw.', error);
   }
 }
@@ -119,10 +87,6 @@ function stopAudio() {
     try { node.stop(); } catch { /* The scheduled note has already ended. */ }
   });
   activeAudioNodes.clear();
-  if (audioElement && !audioElement.paused) {
-    audioElement.pause();
-    try { audioElement.currentTime = 0; } catch { /* Metadata may not be ready yet. */ }
-  }
 }
 
 function startNotesImmediately(context, frequencies, { type = 'sine', volume = 0.14, spacing = 0.11, duration = 0.24 } = {}) {
@@ -233,7 +197,7 @@ document.querySelectorAll('.shop-link').forEach((link) => {
 });
 
 begin.addEventListener('click', () => {
-  // Start the complete opening arpeggio in this trusted tap, without waiting for animation timers.
+  // Start the opening arpeggio directly in this trusted tap.
   playNotes([523.25, 659.25, 783.99, 1046.5, 880, 1174.66], { type: 'triangle', volume: 0.18, spacing: 0.13, duration: 0.22 });
   opening.classList.add('is-gone');
   welcome.classList.remove('is-hidden');
@@ -247,84 +211,6 @@ view.addEventListener('click', () => {
   showCard(activeCard);
 });
 
-// TEST A: created and started synchronously in this button's own tap handler.
-document.querySelector('#test-web-audio').addEventListener('click', () => {
-  const context = getAudioContext();
-  if (!context) {
-    webAudioResult.textContent = 'Failed: Web Audio API unavailable; see console.';
-    return;
-  }
-  stopAudio();
-  requestContextResume(context);
-  try {
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const start = context.currentTime;
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(880, start);
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.addEventListener('ended', () => {
-      activeAudioNodes.delete(oscillator);
-      webAudioResult.textContent = `Oscillator ended; AudioContext state=${context.state}`;
-    }, { once: true });
-    activeAudioNodes.add(oscillator);
-    oscillator.start(start);
-    oscillator.stop(start + 0.32);
-    webAudioResult.textContent = `oscillator.start() called; context=${context.state}`;
-  } catch (error) {
-    webAudioResult.textContent = `Failed: ${error.name || 'Error'}: ${error.message || error}`;
-    console.error('Web Audio test failed.', error);
-  }
-});
-
-function updateAudioFileStatus(message) {
-  fileStatusOutput.textContent = message;
-}
-
-audioElement.addEventListener('loadstart', () => updateAudioFileStatus('Loading file…'));
-audioElement.addEventListener('loadeddata', () => updateAudioFileStatus('Loaded (readyState ' + audioElement.readyState + ')'));
-audioElement.addEventListener('canplay', () => updateAudioFileStatus('Ready to play'));
-audioElement.addEventListener('playing', () => {
-  htmlAudioResult.textContent = 'playing event fired; HTML Audio playback started.';
-});
-audioElement.addEventListener('error', () => {
-  const mediaError = audioElement.error;
-  const message = mediaError ? `MediaError code ${mediaError.code}${mediaError.message ? `: ${mediaError.message}` : ''}` : 'Unknown media loading error';
-  updateAudioFileStatus(`Failed: ${message}`);
-  console.error('HTML Audio test file failed to load.', mediaError);
-});
-audioElement.addEventListener('stalled', () => updateAudioFileStatus('Loading stalled'));
-audioElement.addEventListener('abort', () => updateAudioFileStatus('Loading aborted'));
-if (audioElement.readyState >= 2) updateAudioFileStatus(`Loaded (readyState ${audioElement.readyState})`);
-else audioElement.load();
-
-// TEST B: HTMLAudioElement.play() is called synchronously in this button's tap handler.
-document.querySelector('#test-html-audio').addEventListener('click', () => {
-  stopAudio();
-  try {
-    audioElement.currentTime = 0;
-    const result = audioElement.play();
-    htmlAudioResult.textContent = 'play() called; waiting for browser result…';
-    if (result && typeof result.then === 'function') {
-      result.then(() => {
-        htmlAudioResult.textContent = 'play() resolved; audio is playing.';
-      }).catch((error) => {
-        htmlAudioResult.textContent = `play() rejected: ${error.name || 'Error'}: ${error.message || error}`;
-        console.error('HTMLAudioElement.play() rejected.', error);
-      });
-    } else {
-      htmlAudioResult.textContent = 'play() returned no Promise; check whether the sound is audible.';
-    }
-  } catch (error) {
-    htmlAudioResult.textContent = `play() threw: ${error.name || 'Error'}: ${error.message || error}`;
-    console.error('HTMLAudioElement.play() threw.', error);
-  }
-});
-
 document.addEventListener('keydown', (event) => {
   if (gallery.classList.contains('is-hidden') || event.target.closest('a,button')) return;
   if (event.key === 'ArrowLeft') showCard(activeCard - 1);
@@ -332,4 +218,3 @@ document.addEventListener('keydown', (event) => {
 });
 
 updateSoundToggle();
-updateContextState();

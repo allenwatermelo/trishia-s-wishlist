@@ -62,19 +62,6 @@
           </div>
           <button class="carousel-arrow arrow-next" type="button" aria-label="Next wishlist item">›</button>
         </div>
-        <details class="audio-debug" id="audio-debug">
-          <summary>Audio diagnostics</summary>
-          <div class="audio-debug-panel">
-            <div class="audio-state-row"><span>AudioContext</span><output id="audio-context-state">Not initialized</output></div>
-            <div class="audio-state-row"><span>Resume result</span><output id="audio-resume-result">Waiting for a test</output></div>
-            <button class="audio-test-button test-web-audio" id="test-web-audio" type="button">Test A · Web Audio beep</button>
-            <output class="audio-test-result" id="web-audio-result" aria-live="polite">Not tested</output>
-            <div class="audio-state-row"><span>Audio file</span><output id="audio-file-status">Loading…</output></div>
-            <button class="audio-test-button test-html-audio" id="test-html-audio" type="button">Test B · HTML Audio beep</button>
-            <output class="audio-test-result" id="html-audio-result" aria-live="polite">Not tested</output>
-          </div>
-        </details>
-        <audio id="audio-test-file" preload="auto" src="Public/audio-check.wav"></audio>
       </section>
     </main>
     <script src="script.js"></script>
